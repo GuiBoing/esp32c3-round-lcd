@@ -105,6 +105,9 @@ mpremote cp relogio/relogio.py :main.py
 ### imagem-bluetooth
 
 - **v1.0.0** - recebe imagem 160x160 RGB565 por Bluetooth LE e mostra na tela (ainda não testado na placa)
+- **v1.0.1** - página tenta conectar 3 vezes; conexão e desconexão aparecem no serial
+- **v1.1.0** - código de 5 dígitos próprio de cada placa, no nome do Bluetooth e na tela
+- **v1.2.0** - handshake: a placa só aceita imagem depois de responder ao aperto de mão da página
 
 ### wifi-boot
 
@@ -114,3 +117,4 @@ mpremote cp relogio/relogio.py :main.py
 ### alterna
 
 - **v1.0.0** - alterna entre `imagem.py` e `mensagem-wifi.py` pelo botão BOOT (ainda não testado na placa)
+- **v1.1.0** - mensagens de depuração no serial a cada passo da troca

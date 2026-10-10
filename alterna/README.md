@@ -23,9 +23,11 @@ Ao ligar, a placa abre o último programa usado (na primeira vez, o `imagem.py`)
 - A troca acontece ao **soltar** o botão. Não segure o BOOT ao ligar a placa ou apertar o RESET: isso entra no modo de gravação.
 - A mensagem e as cores do `mensagem-wifi` se perdem a cada troca.
 - Se um programa falhar (por exemplo, sem o `imagem.raw` na placa), o erro sai no serial e o botão continua funcionando.
+- Com `DEBUG = True` no topo do `main.py`, cada passo da troca sai no serial com o tempo em milissegundos; troque para `False` para desligar.
 - Para trocar ou acrescentar programas, edite `PROGRAMAS` no topo do `main.py`.
 - Para usar um switch externo, solde em paralelo com o BOOT ou troque o `Pin(9, ...)` por outro GPIO livre, com o outro terminal no GND.
 
 ## Histórico de versões
 
 - **v1.0.0** - alterna entre `imagem.py` e `mensagem-wifi.py` pelo botão BOOT (ainda não testado na placa)
+- **v1.1.0** - mensagens de depuração no serial a cada passo da troca

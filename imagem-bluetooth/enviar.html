@@ -24,6 +24,7 @@
         <h1>Imagem na tela</h1>
         <canvas id="previa" width="160" height="160" aria-label="Prévia da imagem"></canvas>
         <div class="field"><label for="arquivo">Imagem</label><input type="file" id="arquivo" accept="image/*"></div>
+        <div class="field"><button id="conectar">Conectar na placa</button></div>
         <button id="enviar" disabled>Enviar para a tela</button>
         <progress id="barra" value="0" max="1"></progress>
         <p id="status">Escolha uma imagem.</p>
@@ -37,6 +38,7 @@
 
         const previa = document.getElementById('previa');
         const arquivo = document.getElementById('arquivo');
+        const conectar = document.getElementById('conectar');
         const enviar = document.getElementById('enviar');
         const barra = document.getElementById('barra');
         const status = document.getElementById('status');
@@ -49,6 +51,7 @@
         if (!navigator.bluetooth) {
             status.textContent = 'Este navegador não tem Web Bluetooth. Use o Chrome ou o Edge, em https ou localhost.';
             arquivo.disabled = true;
+            conectar.disabled = true;
         }
 
         arquivo.onchange = async () => {
@@ -72,13 +75,61 @@
 
         async function conecta() {
             if (placa && placa.gatt.connected) return;
-            status.textContent = 'Procurando a placa...';
-            placa = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICO] }] });
-            status.textContent = 'Conectando...';
-            const servico = await (await placa.gatt.connect()).getPrimaryService(SERVICO);
-            controle = await servico.getCharacteristic(CONTROLE);
-            dados = await servico.getCharacteristic(DADOS);
+            if (!placa) {
+                status.textContent = 'Procurando a placa...';
+                placa = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICO] }] });
+                placa.addEventListener('gattserverdisconnected', () => { status.textContent = 'Desconectada da placa.'; });
+            }
+            // A conexão às vezes cai logo depois de abrir; tenta de novo antes de desistir
+            for (let tentativa = 1; ; tentativa++) {
+                try {
+                    status.textContent = 'Conectando em ' + placa.name + '... (tentativa ' + tentativa + ' de 3)';
+                    const servico = await (await placa.gatt.connect()).getPrimaryService(SERVICO);
+                    controle = await servico.getCharacteristic(CONTROLE);
+                    dados = await servico.getCharacteristic(DADOS);
+                    const versao = await handshake();
+                    status.textContent = 'Conectada em ' + placa.name + ' (' + versao + ').';
+                    return;
+                } catch (erro) {
+                    if (tentativa == 3) {
+                        placa = null; // Na próxima vez, escolhe a placa de novo
+                        throw erro;
+                    }
+                    await new Promise(pronto => setTimeout(pronto, 500));
+                }
+            }
         }
+
+        // Manda 4 bytes sorteados e espera a placa devolver os mesmos, com o código e a versão dela
+        async function handshake() {
+            const sorteio = crypto.getRandomValues(new Uint8Array(4));
+            await controle.startNotifications();
+            const resposta = new Promise((chegou, falhou) => {
+                const prazo = setTimeout(() => falhou(new Error('A placa não respondeu ao handshake.')), 3000);
+                controle.addEventListener('characteristicvaluechanged', evento => {
+                    clearTimeout(prazo);
+                    chegou(evento.target.value);
+                }, { once: true });
+            });
+            resposta.catch(() => {});
+            await controle.writeValueWithResponse(Uint8Array.of(2, ...sorteio));
+            const valor = await resposta;
+            const bytes = new Uint8Array(valor.buffer, valor.byteOffset, valor.byteLength);
+            if (bytes[0] != 2 || sorteio.some((b, i) => bytes[i + 1] != b)) {
+                throw new Error('A placa respondeu errado ao handshake.');
+            }
+            return new TextDecoder().decode(bytes.subarray(5));
+        }
+
+        conectar.onclick = async () => {
+            conectar.disabled = true;
+            try {
+                await conecta();
+            } catch (erro) {
+                status.textContent = 'Falhou: ' + erro.message;
+            }
+            conectar.disabled = false;
+        };
 
         enviar.onclick = async () => {
             enviar.disabled = true;
@@ -89,9 +140,9 @@
                 for (let i = 0; i < imagem.length; i += PEDACO) {
                     await dados.writeValueWithResponse(imagem.subarray(i, i + PEDACO));
                     barra.value = (i + PEDACO) / imagem.length;
-                    status.textContent = 'Enviando... ' + Math.min(100, Math.round(barra.value * 100)) + '%';
+                    status.textContent = 'Enviando para ' + placa.name + '... ' + Math.min(100, Math.round(barra.value * 100)) + '%';
                 }
-                status.textContent = 'Enviada em ' + ((Date.now() - inicio) / 1000).toFixed(1) + ' s.';
+                status.textContent = 'Enviada para ' + placa.name + ' em ' + ((Date.now() - inicio) / 1000).toFixed(1) + ' s.';
             } catch (erro) {
                 status.textContent = 'Falhou: ' + erro.message;
             }
