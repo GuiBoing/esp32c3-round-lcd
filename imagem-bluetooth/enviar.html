@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Imagem ESP32</title>
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 16px; font-family: sans-serif; color: #dce7e4; background: #0b1a33; }
+        main { max-width: 620px; margin: 0 auto; }
+        h1 { margin: 0 0 16px; font-size: 24px; }
+        .field { margin: 0 0 16px; }
+        label { display: block; margin-bottom: 6px; }
+        input[type="file"] { width: 100%; font: inherit; }
+        canvas { display: block; width: 160px; height: 160px; margin: 0 auto 16px; border-radius: 50%; background: #000; }
+        button { width: 100%; padding: 12px; font: inherit; }
+        progress { width: 100%; margin-top: 16px; }
+        #status { margin: 8px 0 0; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Imagem na tela</h1>
+        <canvas id="previa" width="160" height="160" aria-label="Prévia da imagem"></canvas>
+        <div class="field"><label for="arquivo">Imagem</label><input type="file" id="arquivo" accept="image/*"></div>
+        <button id="enviar" disabled>Enviar para a tela</button>
+        <progress id="barra" value="0" max="1"></progress>
+        <p id="status">Escolha uma imagem.</p>
+    </main>
+    <script>
+        // Os mesmos três códigos do imagem-bluetooth.py
+        const SERVICO = '7b1e0001-5c3a-4e2b-9f6d-2a8c4d10e571';
+        const CONTROLE = '7b1e0002-5c3a-4e2b-9f6d-2a8c4d10e571';
+        const DADOS = '7b1e0003-5c3a-4e2b-9f6d-2a8c4d10e571';
+        const PEDACO = 240; // Bytes por escrita (cabe em um pacote com MTU de 256)
+
+        const previa = document.getElementById('previa');
+        const arquivo = document.getElementById('arquivo');
+        const enviar = document.getElementById('enviar');
+        const barra = document.getElementById('barra');
+        const status = document.getElementById('status');
+
+        let imagem = null;
+        let placa = null;
+        let controle = null;
+        let dados = null;
+
+        if (!navigator.bluetooth) {
+            status.textContent = 'Este navegador não tem Web Bluetooth. Use o Chrome ou o Edge, em https ou localhost.';
+            arquivo.disabled = true;
+        }
+
+        arquivo.onchange = async () => {
+            if (!arquivo.files[0]) return;
+            // Corta no centro e redimensiona para 160x160
+            const foto = await createImageBitmap(arquivo.files[0]);
+            const lado = Math.min(foto.width, foto.height);
+            const ctx = previa.getContext('2d');
+            ctx.drawImage(foto, (foto.width - lado) / 2, (foto.height - lado) / 2, lado, lado, 0, 0, 160, 160);
+            const rgba = ctx.getImageData(0, 0, 160, 160).data;
+            imagem = new Uint8Array(160 * 160 * 2);
+            for (let i = 0; i < 160 * 160; i++) {
+                const cor = ((rgba[i * 4] & 0xF8) << 8) | ((rgba[i * 4 + 1] & 0xFC) << 3) | (rgba[i * 4 + 2] >> 3);
+                imagem[i * 2] = cor >> 8; // O painel lê o byte alto primeiro
+                imagem[i * 2 + 1] = cor & 0xFF;
+            }
+            barra.value = 0;
+            enviar.disabled = false;
+            status.textContent = 'Pronta para enviar.';
+        };
+
+        async function conecta() {
+            if (placa && placa.gatt.connected) return;
+            status.textContent = 'Procurando a placa...';
+            placa = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICO] }] });
+            status.textContent = 'Conectando...';
+            const servico = await (await placa.gatt.connect()).getPrimaryService(SERVICO);
+            controle = await servico.getCharacteristic(CONTROLE);
+            dados = await servico.getCharacteristic(DADOS);
+        }
+
+        enviar.onclick = async () => {
+            enviar.disabled = true;
+            try {
+                await conecta();
+                const inicio = Date.now();
+                await controle.writeValueWithResponse(Uint8Array.of(1)); // Começa uma imagem nova
+                for (let i = 0; i < imagem.length; i += PEDACO) {
+                    await dados.writeValueWithResponse(imagem.subarray(i, i + PEDACO));
+                    barra.value = (i + PEDACO) / imagem.length;
+                    status.textContent = 'Enviando... ' + Math.min(100, Math.round(barra.value * 100)) + '%';
+                }
+                status.textContent = 'Enviada em ' + ((Date.now() - inicio) / 1000).toFixed(1) + ' s.';
+            } catch (erro) {
+                status.textContent = 'Falhou: ' + erro.message;
+            }
+            enviar.disabled = false;
+        };
+    </script>
+</body>
+</html>

@@ -17,7 +17,7 @@ O endereço é sempre `192.168.4.1`.
 ## Detalhes
 
 - Enquanto estiver no Wi-Fi da placa, o computador fica sem internet. Se o Raspberry usa Wi-Fi para o SSH, a conexão SSH cai ao trocar de rede; por cabo de rede ela continua.
-- Mais lento que o USB; arquivos grandes como o `olho.raw` é melhor mandar pelo cabo.
+- Mais lento que o USB; arquivos grandes é melhor mandar pelo cabo.
 - `REDE` e `SENHA` ficam no topo do `boot.py`; mantenha iguais aos do `mensagem-wifi.py`.
 - São duas senhas diferentes: a do Wi-Fi (`SENHA`) e a do WebREPL (definida no `webrepl_setup`).
 - Funciona junto com o `mensagem-wifi`: a página fica em `http://192.168.4.1` e o WebREPL na porta 8266.

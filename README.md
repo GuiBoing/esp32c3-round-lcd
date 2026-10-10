@@ -12,6 +12,9 @@ Projetos em MicroPython para a placa **Waveshare ESP32-C3-LCD-0.71** (tela redon
 | `imagem/imagem.py` | Mostra o arquivo `imagem.raw` na tela | Placa |
 | `imagem/converte.py` | Converte JPG/PNG para `imagem.raw` (160x160 RGB565) | Raspberry |
 | `mensagem-wifi/mensagem-wifi.py` | Cria rede Wi-Fi e página com caixa de mensagem que aparece na tela | Placa |
+| `imagem-bluetooth/imagem-bluetooth.py` | Recebe uma imagem por Bluetooth LE e mostra na tela | Placa |
+| `imagem-bluetooth/enviar.html` | Página que converte e envia a imagem por Web Bluetooth | Navegador |
+| `alterna/main.py` | Alterna entre `imagem.py` e `mensagem-wifi.py` a cada clique no botão BOOT | Placa |
 | `wifi-boot/boot.py` | Cria a rede Wi-Fi da placa e liga o WebREPL (enviar código sem cabo) | Placa |
 
 Todos os programas mostram a versão no serial ao iniciar; `teste-tela` e `relogio` também mostram na tela por 2 s.
@@ -62,40 +65,6 @@ Para um programa iniciar sozinho ao ligar a placa, copie como `main.py`:
 mpremote cp relogio/relogio.py :main.py
 ```
 
-## Exemplos da Waveshare (`exemplos-waveshare/`)
-
-Portes para MicroPython dos exemplos Arduino do [demo oficial](https://files.waveshare.com/wiki/ESP32-C3-LCD-0.71/ESP32-C3-LCD-0.71-Demo.zip). Os `.raw` já estão convertidos (160x160 RGB565).
-
-| Pasta | Exemplo original | O que faz | Arquivos de dados |
-|---|---|---|---|
-| `01_texto_numero` | 01_Text_and_Number_Display | Troca de cores, texto e contador 00-99 | - |
-| `02_formas` | 02_Shapes_on_Circular_Display | Quadrado, triângulo e círculo com cores aleatórias | - |
-| `04_olho_animado` | 04_Animated_Eye2 e 05_Animated_Eye12 | Animação de 12 quadros (olho), mostra FPS no serial | `olho.raw` (600 KB) |
-| `06_imagens` | 06_Image_Display | Passa as 4 imagens do demo, 3 s cada | `A1.raw` a `A4.raw` (50 KB cada) |
-| `07_relogio` | 07_Clock | Mostrador do demo + ponteiros | `mostrador.raw` (50 KB) |
-
-Não portados: `03_Animated_Eye1` e o `Demo_1` do `05` (olho procedural "Uncanny Eyes"). Ele calcula pixel a pixel sobre ~150 KB de tabelas, o que não cabe na RAM nem roda em velocidade útil em MicroPython puro.
-
-Diferenças em relação ao original: a fonte é a 8x8 do `framebuf` (ampliada no contador); os exemplos 04, 06 e 07 usavam LVGL e aqui desenham direto no buffer; no 07 os ponteiros são linhas, não as imagens PNG.
-
-Como rodar (depois de copiar o driver):
-
-```
-mpremote run exemplos-waveshare/01_texto_numero/01_texto_numero.py
-mpremote run exemplos-waveshare/02_formas/02_formas.py
-
-mpremote cp exemplos-waveshare/04_olho_animado/olho.raw :olho.raw
-mpremote run exemplos-waveshare/04_olho_animado/04_olho_animado.py
-
-mpremote cp exemplos-waveshare/06_imagens/A1.raw exemplos-waveshare/06_imagens/A2.raw exemplos-waveshare/06_imagens/A3.raw exemplos-waveshare/06_imagens/A4.raw :
-mpremote run exemplos-waveshare/06_imagens/06_imagens.py
-
-mpremote cp exemplos-waveshare/07_relogio/mostrador.raw :mostrador.raw
-mpremote rtc --set run exemplos-waveshare/07_relogio/07_relogio.py
-```
-
-Todos os `.raw` juntos somam ~870 KB; se faltar espaço na placa, apague os que não estiver usando (`mpremote rm :olho.raw`).
-
 ## Lembretes
 
 - **Cores:** o `framebuf` grava RGB565 em little-endian e o painel lê big-endian, então as constantes de cor vão com os bytes invertidos (vermelho `0x00F8`, azul `0x1F00`, verde `0xE007`). Branco e preto não mudam.
@@ -130,12 +99,18 @@ Todos os `.raw` juntos somam ~870 KB; se faltar espaço na placa, apague os que 
 
 - **v1.0.0** - rede Wi-Fi própria + página com caixa de mensagem que aparece na tela
 - **v1.1.0** - mensagem em letras gigantes (2 por vez) deslizando na tela (ainda não testado na placa)
+- **v1.2.0** - página escura responsiva, formulário persistente e ajustes de apresentação aplicados ao letreiro
+- **v1.2.1** - página com estilo cru: fundo azul escuro liso, sem efeitos
+
+### imagem-bluetooth
+
+- **v1.0.0** - recebe imagem 160x160 RGB565 por Bluetooth LE e mostra na tela (ainda não testado na placa)
 
 ### wifi-boot
 
 - **v1.0.0** - conecta no Wi-Fi de casa e inicia o WebREPL
 - **v2.0.0** - passa a criar a própria rede Wi-Fi em vez de usar a de casa (ainda não testado na placa)
 
-### exemplos-waveshare
+### alterna
 
-- **v1.0.0** - portes dos exemplos 01, 02, 04/05, 06 e 07 (ainda não testados na placa)
+- **v1.0.0** - alterna entre `imagem.py` e `mensagem-wifi.py` pelo botão BOOT (ainda não testado na placa)

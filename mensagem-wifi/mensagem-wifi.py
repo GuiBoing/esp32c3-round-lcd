@@ -10,7 +10,8 @@ import gc9d01
 # v1.0.0 - rede Wi-Fi própria + página com caixa de mensagem que aparece na tela
 # v1.1.0 - mensagem em letras gigantes (2 por vez) deslizando na tela
 # v1.2.0 - página escura com controles aplicados e formulário persistente
-VERSAO = "v1.2.0"
+# v1.2.1 - página com estilo cru: fundo azul escuro liso, sem efeitos
+VERSAO = "v1.2.1"
 
 # Rede criada pela placa (a senha precisa ter no mínimo 8 caracteres)
 REDE = "ESP32-Tela"
@@ -46,52 +47,29 @@ PAGINA = """<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tela ESP32</title>
     <style>
-        :root { color-scheme: dark; --page-text: __TC__; --panel: __BC__; --message: __MC__; --outline: __BT__; }
+        :root { color-scheme: dark; }
         * { box-sizing: border-box; }
-        body {
-            min-height: 100vh; margin: 0; padding: 32px 16px;
-            font-family: system-ui, sans-serif; color: var(--page-text);
-            background: radial-gradient(ellipse at 50% -15%, #19333b 0, #101719 45%, #090c0d 100%);
-        }
-        main { width: min(100%, 620px); margin: 0 auto; }
-        header { margin: 0 0 24px; }
-        .eyebrow { margin: 0 0 8px; color: #81c9bd; font-size: 12px; font-weight: 700; text-transform: uppercase; }
-        h1 { margin: 0; color: #f1f6f4; font-size: 28px; line-height: 1.15; }
+        body { margin: 0; padding: 16px; font-family: sans-serif; color: __TC__; background: #0b1a33; }
+        main { max-width: 620px; margin: 0 auto; }
+        h1 { margin: 0 0 16px; font-size: 24px; }
         .preview {
-            min-height: 86px; display: grid; place-items: center; margin-bottom: 20px;
-            padding: 18px; border: 1px solid var(--outline); border-radius: 8px;
-            background: var(--panel); color: var(--message); overflow-wrap: anywhere;
+            margin-bottom: 16px; padding: 16px; border: 1px solid __BT__;
+            background: __BC__; color: __MC__; overflow-wrap: anywhere;
             font-size: 20px; font-weight: 700; text-align: center;
         }
-        form { display: grid; gap: 18px; }
-        .field { display: grid; gap: 8px; }
-        label, legend { color: #c7d2d0; font-size: 14px; font-weight: 600; }
-        textarea {
-            width: 100%; min-height: 112px; resize: vertical; padding: 13px 14px;
-            border: 1px solid #384548; border-radius: 6px; background: #111719;
-            color: #f1f6f4; font: inherit; font-size: 17px; line-height: 1.45;
-        }
-        textarea:focus, input:focus-visible, button:focus-visible { outline: 2px solid #71c8b7; outline-offset: 2px; }
-        fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
-        .colors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-        .color-field { min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 11px; border: 1px solid #303b3e; border-radius: 6px; background: #111719; }
-        .color-field label { font-size: 13px; }
-        input[type="color"] { width: 42px; height: 34px; padding: 2px; border: 1px solid #526064; border-radius: 4px; background: #111719; }
-        input[type="range"] { width: 100%; accent-color: #71c8b7; }
-        .range-heading { display: flex; justify-content: space-between; gap: 12px; }
-        output { color: #81c9bd; font-size: 13px; font-variant-numeric: tabular-nums; }
-        button { min-height: 48px; padding: 12px 16px; border: 0; border-radius: 6px; background: #8bd2c2; color: #09201e; font: inherit; font-weight: 750; cursor: pointer; }
-        button:hover { background: #a5e4d6; }
-        .current { margin: 18px 0 0; color: #98a8a6; font-size: 13px; }
-        @media (max-width: 420px) {
-            body { padding: 24px 14px; }
-            .colors { grid-template-columns: 1fr; gap: 8px; }
-        }
+        .field, fieldset { margin: 0 0 16px; padding: 0; border: 0; }
+        label, legend { display: block; margin-bottom: 6px; padding: 0; }
+        textarea { width: 100%; min-height: 100px; padding: 8px; font: inherit; }
+        .color-field, .range-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+        .color-field label, .range-heading label { margin: 0; }
+        input[type="range"] { width: 100%; }
+        button { width: 100%; padding: 12px; font: inherit; }
+        .current { margin: 16px 0 0; font-size: 13px; }
     </style>
 </head>
 <body>
     <main>
-        <header><p class="eyebrow">ESP32 · letreiro</p><h1>Mensagem na tela</h1></header>
+        <h1>Mensagem na tela</h1>
         <div class="preview" aria-label="Prévia da mensagem">__MESSAGE__</div>
         <form action="/" method="get">
             <div class="field"><label for="message">Mensagem</label><textarea id="message" name="m" maxlength="126" autofocus>__MESSAGE__</textarea></div>

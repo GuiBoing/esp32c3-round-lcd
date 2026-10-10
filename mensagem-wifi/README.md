@@ -27,3 +27,4 @@ Para iniciar sozinho ao ligar, use no `main.py`: `exec(open("mensagem-wifi.py").
 - **v1.0.0** - rede Wi-Fi própria + página com caixa de mensagem que aparece na tela
 - **v1.1.0** - mensagem em letras gigantes (2 por vez) deslizando na tela (ainda não testado na placa)
 - **v1.2.0** - página escura responsiva, formulário persistente e ajustes de apresentação aplicados ao letreiro
+- **v1.2.1** - página com estilo cru: fundo azul escuro liso, sem efeitos
