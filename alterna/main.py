@@ -9,13 +9,15 @@ from machine import Pin
 # Histórico de versões (atualize a cada mudança)
 # v1.0.0 - alterna entre imagem.py e mensagem-wifi.py pelo botão BOOT
 # v1.1.0 - mensagens de depuração no serial a cada passo da troca
-VERSAO = "v1.1.0"
+# v1.2.0 - passa a alternar entre imagem.py e tela-sem-fio.py
+# v1.2.1 - carrega o programa com import, sem guardar o arquivo inteiro na memória
+VERSAO = "v1.2.1"
 
 # Mostra no serial cada passo da troca (False para desligar)
 DEBUG = True
 
 # Programas que o botão percorre, nesta ordem (precisam estar na placa)
-PROGRAMAS = ("imagem.py", "mensagem-wifi.py","imagem-bluetooth.py")
+PROGRAMAS = ("imagem.py", "tela-sem-fio.py")
 
 # Guarda qual programa está em uso, para voltar nele ao religar
 ARQUIVO = "programa.txt"
@@ -53,13 +55,13 @@ botao.irq(troca, Pin.IRQ_FALLING)
 print("alterna", VERSAO, "->", PROGRAMAS[indice])
 debug("motivo do ultimo reinicio:", machine.reset_cause())
 debug("memoria livre:", gc.mem_free(), "botao:", botao.value())
-for nome in PROGRAMAS + ("gc9d01.py", "imagem.raw"):
+for nome in PROGRAMAS + ("gc9d01.py", "imagem.raw", "pagina.html"):
     if nome not in os.listdir():
         debug("FALTA NA PLACA:", nome)
 
 # Os programas são laços sem fim, então a troca é feita reiniciando a placa
 try:
-    exec(open(PROGRAMAS[indice]).read(), {})
+    __import__(PROGRAMAS[indice][:-3])
     debug("programa terminou sozinho:", PROGRAMAS[indice])
 except Exception as erro:
     debug("programa falhou:", PROGRAMAS[indice])

@@ -97,3 +97,23 @@ class GC9D01(framebuf.FrameBuffer):
         self._write(_CASET, b'\x00\x00\x00\x9f')
         self._write(_RASET, b'\x00\x00\x00\x9f')
         self._write(_RAMWR, self.buffer)
+
+class Painel:
+    # Só o painel, sem buffer de tela: economiza os 51 KB do GC9D01.
+    # Quem usa manda as linhas já prontas em RGB565, com envia().
+    def __init__(self, spi, dc, cs, rst):
+        self.spi = spi
+        self.dc = dc
+        self.cs = cs
+        self.rst = rst
+        self.init_display()
+
+    _write = GC9D01._write
+    init_display = GC9D01.init_display
+
+    def envia(self, y, dados):
+        # dados: linhas inteiras de 160 pixels, a partir da linha y
+        linhas = len(dados) // 320
+        self._write(_CASET, b'\x00\x00\x00\x9f')
+        self._write(_RASET, bytes((0, y, 0, y + linhas - 1)))
+        self._write(_RAMWR, dados)

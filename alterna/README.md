@@ -1,16 +1,17 @@
 # alterna
 
-Um `main.py` que alterna entre o `imagem.py` e o `mensagem-wifi.py` a cada clique no botão **BOOT** da placa.
+Um `main.py` que alterna entre o `imagem.py` e o `tela-sem-fio.py` a cada clique no botão **BOOT** da placa.
 
 ## Como usar
 
-Copie o driver, os dois programas, a imagem e o `main.py` para a placa:
+Copie o driver, os dois programas, a imagem, a página e o `main.py` para a placa:
 
 ```
 mpremote cp lib/gc9d01.py :gc9d01.py
 mpremote cp imagem/imagem.py :imagem.py
 mpremote cp imagem.raw :imagem.raw
-mpremote cp mensagem-wifi/mensagem-wifi.py :mensagem-wifi.py
+mpremote cp tela-sem-fio/tela-sem-fio.py :tela-sem-fio.py
+mpremote cp tela-sem-fio/pagina.html :pagina.html
 mpremote cp alterna/main.py :main.py
 ```
 
@@ -21,7 +22,7 @@ Ao ligar, a placa abre o último programa usado (na primeira vez, o `imagem.py`)
 - Os programas são laços sem fim, então a troca é feita reiniciando a placa: leva cerca de um segundo.
 - O programa em uso fica gravado em `programa.txt`, na placa.
 - A troca acontece ao **soltar** o botão. Não segure o BOOT ao ligar a placa ou apertar o RESET: isso entra no modo de gravação.
-- A mensagem e as cores do `mensagem-wifi` se perdem a cada troca.
+- A mensagem, as cores e a imagem enviadas ao `tela-sem-fio` se perdem a cada troca.
 - Se um programa falhar (por exemplo, sem o `imagem.raw` na placa), o erro sai no serial e o botão continua funcionando.
 - Com `DEBUG = True` no topo do `main.py`, cada passo da troca sai no serial com o tempo em milissegundos; troque para `False` para desligar.
 - Para trocar ou acrescentar programas, edite `PROGRAMAS` no topo do `main.py`.
@@ -31,3 +32,5 @@ Ao ligar, a placa abre o último programa usado (na primeira vez, o `imagem.py`)
 
 - **v1.0.0** - alterna entre `imagem.py` e `mensagem-wifi.py` pelo botão BOOT (ainda não testado na placa)
 - **v1.1.0** - mensagens de depuração no serial a cada passo da troca
+- **v1.2.0** - passa a alternar entre `imagem.py` e `tela-sem-fio.py`
+- **v1.2.1** - carrega o programa com import, sem guardar o arquivo inteiro na memória

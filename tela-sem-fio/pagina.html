@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tela ESP32</title>
+    <style>
+        :root { color-scheme: dark; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 16px; font-family: sans-serif; color: #dce7e4; background: #0b1a33; }
+        main { max-width: 620px; margin: 0 auto; }
+        h1 { margin: 0 0 16px; font-size: 24px; }
+        h2 { margin: 24px 0 12px; font-size: 18px; }
+        .field, fieldset { margin: 0 0 16px; padding: 0; border: 0; }
+        label, legend { display: block; margin-bottom: 6px; padding: 0; }
+        textarea { width: 100%; min-height: 100px; padding: 8px; font: inherit; }
+        .color-field, .range-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+        .color-field label, .range-heading label { margin: 0; }
+        input[type="range"], input[type="file"] { width: 100%; font: inherit; }
+        canvas { display: block; width: 160px; height: 160px; margin: 0 auto 16px; border-radius: 50%; background: #000; }
+        button { width: 100%; padding: 12px; font: inherit; }
+        progress { width: 100%; margin-top: 16px; }
+        #status { margin: 8px 0 0; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <main>
+        <h1>Tela ESP32</h1>
+        <div class="field" id="campo-conectar" hidden><button id="conectar">Conectar por Bluetooth</button></div>
+
+        <h2>Mensagem</h2>
+        <div class="field"><label for="mensagem">Mensagem</label><textarea id="mensagem" maxlength="126"></textarea></div>
+        <fieldset><legend>Cores</legend>
+            <div class="color-field"><label for="mc">Cor da mensagem</label><input type="color" id="mc" value="#ffffff"></div>
+            <div class="color-field"><label for="bc">Cor do fundo</label><input type="color" id="bc" value="#000000"></div>
+            <div class="color-field"><label for="bt">Cor da borda</label><input type="color" id="bt" value="#00ffff"></div>
+        </fieldset>
+        <div class="field"><div class="range-heading"><label for="velocidade">Velocidade</label><output id="velocidade-valor">8 px/quadro</output></div><input type="range" id="velocidade" min="1" max="10" value="8" oninput="document.getElementById('velocidade-valor').value=this.value+' px/quadro'"></div>
+        <div class="field"><div class="range-heading"><label for="letra">Tamanho do texto</label><output id="letra-valor">10 px</output></div><input type="range" id="letra" min="4" max="16" value="10" oninput="document.getElementById('letra-valor').value=this.value+' px'"></div>
+        <button id="enviar-texto">Enviar mensagem</button>
+
+        <h2>Imagem</h2>
+        <canvas id="previa" width="160" height="160" aria-label="Prévia da imagem"></canvas>
+        <div class="field"><label for="arquivo">Imagem</label><input type="file" id="arquivo" accept="image/*"></div>
+        <button id="enviar-imagem" disabled>Enviar imagem</button>
+
+        <progress id="barra" value="0" max="1"></progress>
+        <p id="status"></p>
+    </main>
+    <script>
+        // Os mesmos três códigos do tela-sem-fio.py
+        const SERVICO = '7b1e0001-5c3a-4e2b-9f6d-2a8c4d10e571';
+        const CONTROLE = '7b1e0002-5c3a-4e2b-9f6d-2a8c4d10e571';
+        const DADOS = '7b1e0003-5c3a-4e2b-9f6d-2a8c4d10e571';
+        const PEDACO = 240; // Bytes por escrita no Bluetooth (cabe em um pacote com MTU de 256)
+
+        // Tipos de pacote, iguais no Wi-Fi e no Bluetooth
+        const TEXTO = 1;
+        const IMAGEM = 2;
+
+        // Aberta pelo endereço da placa, a página usa o Wi-Fi; de https ou localhost, o Bluetooth
+        const PELO_WIFI = location.protocol == 'http:' && !['localhost', '127.0.0.1'].includes(location.hostname);
+
+        const id = nome => document.getElementById(nome);
+        const status = id('status');
+        const barra = id('barra');
+        const botoes = [id('conectar'), id('enviar-texto'), id('enviar-imagem')];
+
+        let imagem = null;
+        let placa = null;
+        let controle = null;
+        let dados = null;
+
+        // Pacote: 1 byte de tipo + 4 bytes de tamanho do corpo (little-endian) + corpo
+        function pacote(tipo, corpo) {
+            const p = new Uint8Array(5 + corpo.length);
+            p[0] = tipo;
+            new DataView(p.buffer).setUint32(1, corpo.length, true);
+            p.set(corpo, 5);
+            return p;
+        }
+
+        function rgb(campo) {
+            const valor = parseInt(id(campo).value.slice(1), 16);
+            return [valor >> 16, (valor >> 8) & 0xFF, valor & 0xFF];
+        }
+
+        // ---------- Wi-Fi ----------
+
+        async function enviaWifi(p) {
+            const resposta = await fetch('/pacote', { method: 'POST', body: p });
+            if (!resposta.ok) throw new Error(await resposta.text());
+            barra.value = 1;
+        }
+
+        // ---------- Bluetooth ----------
+
+        // Manda 4 bytes sorteados e espera a placa devolver os mesmos, com o código e a versão dela
+        async function handshake() {
+            const sorteio = crypto.getRandomValues(new Uint8Array(4));
+            await controle.startNotifications();
+            const resposta = new Promise((chegou, falhou) => {
+                const prazo = setTimeout(() => falhou(new Error('A placa não respondeu ao handshake.')), 3000);
+                controle.addEventListener('characteristicvaluechanged', evento => {
+                    clearTimeout(prazo);
+                    chegou(evento.target.value);
+                }, { once: true });
+            });
+            resposta.catch(() => {});
+            await controle.writeValueWithResponse(Uint8Array.of(2, ...sorteio));
+            const valor = await resposta;
+            const bytes = new Uint8Array(valor.buffer, valor.byteOffset, valor.byteLength);
+            if (bytes[0] != 2 || sorteio.some((b, i) => bytes[i + 1] != b)) {
+                throw new Error('A placa respondeu errado ao handshake.');
+            }
+            return new TextDecoder().decode(bytes.subarray(5));
+        }
+
+        async function conecta() {
+            if (placa && placa.gatt.connected) return;
+            if (!placa) {
+                status.textContent = 'Procurando a placa...';
+                placa = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICO] }] });
+                placa.addEventListener('gattserverdisconnected', () => { status.textContent = 'Desconectada da placa.'; });
+            }
+            // A conexão às vezes cai logo depois de abrir; tenta de novo antes de desistir
+            for (let tentativa = 1; ; tentativa++) {
+                try {
+                    status.textContent = 'Conectando em ' + placa.name + '... (tentativa ' + tentativa + ' de 3)';
+                    const servico = await (await placa.gatt.connect()).getPrimaryService(SERVICO);
+                    controle = await servico.getCharacteristic(CONTROLE);
+                    dados = await servico.getCharacteristic(DADOS);
+                    const versao = await handshake();
+                    status.textContent = 'Bluetooth: conectada em ' + placa.name + ' (' + versao + ').';
+                    return;
+                } catch (erro) {
+                    if (tentativa == 3) {
+                        placa = null; // Na próxima vez, escolhe a placa de novo
+                        throw erro;
+                    }
+                    await new Promise(pronto => setTimeout(pronto, 500));
+                }
+            }
+        }
+
+        async function enviaBluetooth(p) {
+            await conecta();
+            await controle.writeValueWithResponse(Uint8Array.of(1)); // Vai começar um pacote novo
+            // O cabeçalho vai sozinho, para a placa se preparar antes de o corpo chegar
+            await dados.writeValueWithResponse(p.subarray(0, 5));
+            for (let i = 5; i < p.length; i += PEDACO) {
+                await dados.writeValueWithResponse(p.subarray(i, i + PEDACO));
+                barra.value = Math.min(1, (i + PEDACO) / p.length);
+                status.textContent = 'Enviando... ' + Math.round(barra.value * 100) + '%';
+            }
+        }
+
+        // ---------- Página ----------
+
+        async function envia(p, nome) {
+            botoes.forEach(botao => { botao.disabled = true; });
+            barra.value = 0;
+            try {
+                const inicio = Date.now();
+                status.textContent = 'Enviando...';
+                await (PELO_WIFI ? enviaWifi(p) : enviaBluetooth(p));
+                status.textContent = nome + ' enviada por ' + (PELO_WIFI ? 'Wi-Fi' : 'Bluetooth') + ' em ' + ((Date.now() - inicio) / 1000).toFixed(1) + ' s.';
+            } catch (erro) {
+                status.textContent = 'Falhou: ' + erro.message;
+            }
+            botoes.forEach(botao => { botao.disabled = false; });
+            id('enviar-imagem').disabled = !imagem;
+        }
+
+        id('enviar-texto').onclick = () => {
+            const texto = new TextEncoder().encode(id('mensagem').value);
+            const ajustes = [...rgb('mc'), ...rgb('bc'), ...rgb('bt'), +id('velocidade').value, +id('letra').value];
+            envia(pacote(TEXTO, Uint8Array.of(...ajustes, ...texto)), 'Mensagem');
+        };
+
+        id('enviar-imagem').onclick = () => envia(pacote(IMAGEM, imagem), 'Imagem');
+
+        id('arquivo').onchange = async () => {
+            const escolhido = id('arquivo').files[0];
+            if (!escolhido) return;
+            // Corta no centro e redimensiona para 160x160
+            const foto = await createImageBitmap(escolhido);
+            const lado = Math.min(foto.width, foto.height);
+            const ctx = id('previa').getContext('2d');
+            ctx.drawImage(foto, (foto.width - lado) / 2, (foto.height - lado) / 2, lado, lado, 0, 0, 160, 160);
+            const rgba = ctx.getImageData(0, 0, 160, 160).data;
+            imagem = new Uint8Array(160 * 160 * 2);
+            for (let i = 0; i < 160 * 160; i++) {
+                const cor = ((rgba[i * 4] & 0xF8) << 8) | ((rgba[i * 4 + 1] & 0xFC) << 3) | (rgba[i * 4 + 2] >> 3);
+                imagem[i * 2] = cor >> 8; // O painel lê o byte alto primeiro
+                imagem[i * 2 + 1] = cor & 0xFF;
+            }
+            id('enviar-imagem').disabled = false;
+        };
+
+        id('conectar').onclick = async () => {
+            id('conectar').disabled = true;
+            try {
+                await conecta();
+            } catch (erro) {
+                status.textContent = 'Falhou: ' + erro.message;
+            }
+            id('conectar').disabled = false;
+        };
+
+        if (PELO_WIFI) {
+            fetch('/info').then(resposta => resposta.text()).then(versao => {
+                status.textContent = 'Wi-Fi: conectada na placa ' + versao + '.';
+            }).catch(() => { status.textContent = 'Wi-Fi: a placa não respondeu.'; });
+        } else if (navigator.bluetooth) {
+            id('campo-conectar').hidden = false;
+            status.textContent = 'Bluetooth: ainda não conectada.';
+        } else {
+            status.textContent = 'Este navegador não tem Web Bluetooth. Use o Chrome ou o Edge, em https ou localhost, ou abra a página pelo Wi-Fi da placa.';
+            botoes.forEach(botao => { botao.disabled = true; });
+        }
+    </script>
+</body>
+</html>

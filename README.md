@@ -11,10 +11,9 @@ Projetos em MicroPython para a placa **Waveshare ESP32-C3-LCD-0.71** (tela redon
 | `relogio/relogio.py` | Relógio analógico com ponteiros + hora digital | Placa |
 | `imagem/imagem.py` | Mostra o arquivo `imagem.raw` na tela | Placa |
 | `imagem/converte.py` | Converte JPG/PNG para `imagem.raw` (160x160 RGB565) | Raspberry |
-| `mensagem-wifi/mensagem-wifi.py` | Cria rede Wi-Fi e página com caixa de mensagem que aparece na tela | Placa |
-| `imagem-bluetooth/imagem-bluetooth.py` | Recebe uma imagem por Bluetooth LE e mostra na tela | Placa |
-| `imagem-bluetooth/enviar.html` | Página que converte e envia a imagem por Web Bluetooth | Navegador |
-| `alterna/main.py` | Alterna entre `imagem.py` e `mensagem-wifi.py` a cada clique no botão BOOT | Placa |
+| `tela-sem-fio/tela-sem-fio.py` | Texto e imagem na mesma placa, por Wi-Fi e por Bluetooth, com o mesmo pacote | Placa |
+| `tela-sem-fio/pagina.html` | Página única que envia texto e imagem pelos dois caminhos | Placa e navegador |
+| `alterna/main.py` | Alterna entre `imagem.py` e `tela-sem-fio.py` a cada clique no botão BOOT | Placa |
 | `wifi-boot/boot.py` | Cria a rede Wi-Fi da placa e liga o WebREPL (enviar código sem cabo) | Placa |
 
 Todos os programas mostram a versão no serial ao iniciar; `teste-tela` e `relogio` também mostram na tela por 2 s.
@@ -79,6 +78,7 @@ mpremote cp relogio/relogio.py :main.py
 - **v1.0.0** - init reduzido, sem Sleep Out (tela não ligava direito)
 - **v1.1.0** - adiciona Sleep Out (`0x11`); tela liga, mas branco sai cinza claro
 - **v1.2.0** - init completo do demo oficial Waveshare; branco e preto corretos (testado na placa)
+- **v1.3.0** - classe `Painel`, sem buffer de tela, que recebe as linhas prontas (ainda não testado na placa)
 
 ### teste-tela
 
@@ -95,26 +95,24 @@ mpremote cp relogio/relogio.py :main.py
 
 - **v1.0.0** - conversor + exibição de `imagem.raw` (ainda não testado na placa)
 
-### mensagem-wifi
-
-- **v1.0.0** - rede Wi-Fi própria + página com caixa de mensagem que aparece na tela
-- **v1.1.0** - mensagem em letras gigantes (2 por vez) deslizando na tela (ainda não testado na placa)
-- **v1.2.0** - página escura responsiva, formulário persistente e ajustes de apresentação aplicados ao letreiro
-- **v1.2.1** - página com estilo cru: fundo azul escuro liso, sem efeitos
-
-### imagem-bluetooth
-
-- **v1.0.0** - recebe imagem 160x160 RGB565 por Bluetooth LE e mostra na tela (ainda não testado na placa)
-- **v1.0.1** - página tenta conectar 3 vezes; conexão e desconexão aparecem no serial
-- **v1.1.0** - código de 5 dígitos próprio de cada placa, no nome do Bluetooth e na tela
-- **v1.2.0** - handshake: a placa só aceita imagem depois de responder ao aperto de mão da página
-
 ### wifi-boot
 
 - **v1.0.0** - conecta no Wi-Fi de casa e inicia o WebREPL
 - **v2.0.0** - passa a criar a própria rede Wi-Fi em vez de usar a de casa (ainda não testado na placa)
+- **v2.0.1** - erro no WebREPL não derruba mais o boot (o `main.py` deixava de rodar)
+
+### tela-sem-fio
+
+- **v1.0.0** - texto e imagem na mesma placa, por Wi-Fi e por Bluetooth, com o mesmo pacote; substitui o `mensagem-wifi` e o `imagem-bluetooth` (ainda não testado na placa)
+- **v1.0.1** - liga os rádios antes de tudo (Bluetooth primeiro); sem Bluetooth, segue só com Wi-Fi
+- **v1.1.0** - sem o buffer de 51 KB: desenho em 4 cores e imagem enviada em faixas direto ao painel
+- **v1.2.0** - desenha direto em faixas de 8 linhas, criadas antes dos rádios, para sobrar memória para as conexões
+- **v1.2.1** - opção de ligar só um dos rádios, para testes; avisa quando a conexão Bluetooth não completa
+- **v1.2.2** - imagem por Wi-Fi não é mais desfeita depois de 3 s (o fim do pacote se perdia)
 
 ### alterna
 
 - **v1.0.0** - alterna entre `imagem.py` e `mensagem-wifi.py` pelo botão BOOT (ainda não testado na placa)
 - **v1.1.0** - mensagens de depuração no serial a cada passo da troca
+- **v1.2.0** - passa a alternar entre `imagem.py` e `tela-sem-fio.py`
+- **v1.2.1** - carrega o programa com import, sem guardar o arquivo inteiro na memória
