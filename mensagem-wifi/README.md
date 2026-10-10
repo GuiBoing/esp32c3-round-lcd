@@ -15,6 +15,8 @@ Para iniciar sozinho ao ligar, use no `main.py`: `exec(open("mensagem-wifi.py").
 
 - Nome e senha da rede ficam em `REDE` e `SENHA` no topo do script (senha com no mínimo 8 caracteres).
 - A mensagem aparece em letras gigantes (2 por vez) deslizando da direita para a esquerda, em loop. Até 126 letras.
+- A página mantém a mensagem e os ajustes selecionados após enviar; fundo, cores, velocidade e tamanho são aplicados ao letreiro.
+- A velocidade vai de 1 a 10 pixels por quadro; o tamanho vai de 4 a 16 pixels.
 - `ESCALA` é o tamanho da letra (10 = 2 letras por tela, 5 = 4 letras) e `PASSO` é a velocidade (pixels por quadro).
 - A tela de início (rede, senha e endereço) continua em texto pequeno, até chegar a primeira mensagem.
 - A fonte não tem acentos: `ç`, `ã`, `é` etc. viram `c`, `a`, `e`; emojis e outros símbolos viram `?`.
@@ -24,3 +26,4 @@ Para iniciar sozinho ao ligar, use no `main.py`: `exec(open("mensagem-wifi.py").
 
 - **v1.0.0** - rede Wi-Fi própria + página com caixa de mensagem que aparece na tela
 - **v1.1.0** - mensagem em letras gigantes (2 por vez) deslizando na tela (ainda não testado na placa)
+- **v1.2.0** - página escura responsiva, formulário persistente e ajustes de apresentação aplicados ao letreiro
